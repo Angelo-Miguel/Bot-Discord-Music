@@ -21,7 +21,11 @@ class MusicBot(commands.Bot):
 
         await wavelink.Pool.connect(client=self, nodes=[node])
 
-        print("Lavalink connected")
+        await self.load_extension("bot.cogs.music")
+
+        await self.tree.sync()
+
+        print("Bot ready")
 
 
 def run_bot(bot=MusicBot()):
