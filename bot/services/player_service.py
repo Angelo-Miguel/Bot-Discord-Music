@@ -15,60 +15,102 @@ class PlayerService:
 
         return player
 
-    async def play(self, interaction, query: str):
+    async def play(self, interaction, music_player, query: str):
         await interaction.response.defer()
+
         if not interaction.user.voice:
             await interaction.followup.send(
-                "❌ Você precisa entrar em um canal de voz.", ephemeral=True
+                "❌ Entre em um canal de voz.", ephemeral=True
             )
             return
 
-        player = await self.get_player(interaction)
+        if not music_player.voice_client:
+            music_player.voice_client = await interaction.user.voice.channel.connect(
+                cls=wavelink.Player
+            )
 
         tracks = await wavelink.Playable.search(
-            query, source=wavelink.TrackSource.YouTubeMusic
+            query, source=wavelink.TrackSource.YouTube
         )
 
         if not tracks:
             await interaction.followup.send("❌ Música não encontrada.", ephemeral=True)
             return
 
-        track = tracks[0]
+        raw_track = tracks[0]
 
-        await player.play(track)
+        from bot.models.track import Track
+
+        track = Track(
+            title=raw_track.title,
+            url=raw_track.uri,
+            duration=raw_track.length,
+            author=raw_track.author,
+            thumbnail=raw_track.artwork,
+            requester=interaction.user,
+            raw=raw_track,
+        )
+
+        if music_player.voice_client.playing:
+            music_player.queue.append(track)
+
+            await interaction.followup.send(f"➕ Adicionado à fila: {track.title}")
+
+            return
+
+        music_player.current_track = track
+
+        await music_player.voice_client.play(track.raw)
 
         await interaction.followup.send(f"▶️ Tocando: {track.title}")
 
-    async def pause(self, interaction):
+    async def pause(self, interaction, music_player):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
+        player = music_player.voice_client
 
         if player:
             await player.pause(True)
 
             await interaction.followup.send("⏸️ Música pausada.")
 
-    async def resume(self, interaction):
+    async def resume(self, interaction, music_player):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
+        player = music_player.voice_client
 
         if player:
             await player.pause(False)
 
             await interaction.followup.send("▶️ Música retomada.")
 
-    async def skip(self, interaction):
+    async def skip(self, interaction, music_player):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
 
-        if player:
+        player = music_player.voice_client
+
+        if not player:
+            await interaction.followup.send("❌ Nenhum player ativo.", ephemeral=True)
+            return
+
+        next_track = music_player.queue.pop(0) if music_player.queue else None
+
+        if not next_track:
             await player.skip()
 
-            await interaction.followup.send("⏭️ Música pulada.")
+            music_player.current_track = None
 
-    async def stop(self, interaction):
+            await interaction.followup.send("⏭️ Música pulada. Fila vazia.")
+
+            return
+
+        music_player.current_track = next_track
+
+        await player.play(next_track.raw)
+
+        await interaction.followup.send(f"⏭️ Tocando agora: {next_track.title}")
+
+    async def stop(self, interaction, music_player):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
+        player = music_player.voice_client
 
         if player:
             await player.disconnect()

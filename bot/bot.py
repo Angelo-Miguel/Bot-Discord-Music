@@ -1,6 +1,7 @@
 import discord
 import wavelink
 from discord.ext import commands
+from bot.managers.music_manager import MusicManager
 from bot.config import Config
 
 
@@ -12,6 +13,8 @@ class MusicBot(commands.Bot):
         intents.voice_states = True
 
         super().__init__(command_prefix=Config.COMMAND_PREFIX, intents=intents)
+        
+        self.manager = MusicManager(self)
 
     async def setup_hook(self):
         node = wavelink.Node(
@@ -26,6 +29,22 @@ class MusicBot(commands.Bot):
         await self.tree.sync()
 
         print("Bot ready")
+
+    async def on_wavelink_track_end(self, payload):
+        music_player = self.manager.get_player_by_voice(payload.player)
+
+        if not music_player:
+            return
+
+        next_track = self.manager.queue_service.next(music_player)
+
+        if not next_track:
+            music_player.current_track = None
+            return
+
+        music_player.current_track = next_track
+
+        await payload.player.play(next_track.raw)
 
 
 def run_bot(bot=MusicBot()):
