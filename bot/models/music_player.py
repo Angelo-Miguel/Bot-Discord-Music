@@ -15,3 +15,5 @@ class MusicPlayer:
         self.shuffle = False
 
         self.history = []
+
+        self.panel_message = None

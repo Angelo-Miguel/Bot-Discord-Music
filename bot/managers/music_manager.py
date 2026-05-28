@@ -13,13 +13,13 @@ class MusicManager:
         self.player_service = PlayerService(bot)
 
         self.queue_service = QueueService()
-        
+
     def get_player(self, guild_id):
         if guild_id not in self.players:
             self.players[guild_id] = MusicPlayer(guild_id)
 
         return self.players[guild_id]
-    
+
     def get_player_by_voice(self, voice_client):
         for player in self.players.values():
             if player.voice_client == voice_client:
@@ -28,26 +28,31 @@ class MusicManager:
         return None
 
     async def play(self, interaction, query):
-        player = self.get_player(interaction.guild.id)
+        music_player = self.get_player(interaction.guild.id)
 
-        await self.player_service.play(interaction, player, query)
+        await self.player_service.play(interaction, music_player, query)
 
-    async def pause(self, interaction):
-        player = self.get_player(interaction.guild.id)
+    async def pause(self, guild_id):
+        music_player = self.get_player(guild_id)
 
-        await self.player_service.pause(interaction, player)
+        await self.player_service.pause(music_player)
 
-    async def resume(self, interaction):
-        player = self.get_player(interaction.guild.id)
+    async def resume(self, guild_id):
+        music_player = self.get_player(guild_id)
 
-        await self.player_service.resume(interaction, player)
+        await self.player_service.resume(music_player)
 
-    async def skip(self, interaction):
-        player = self.get_player(interaction.guild.id)
+    async def skip(self, guild_id):
+        music_player = self.get_player(guild_id)
 
-        await self.player_service.skip(interaction, player)
+        await self.player_service.skip(music_player)
 
-    async def stop(self, interaction):
-        player = self.get_player(interaction.guild.id)
+    async def stop(self, guild_id):
+        music_player = self.get_player(guild_id)
 
-        await self.player_service.stop(interaction, player)
+        await self.player_service.stop(music_player)
+
+    async def set_volume(self, guild_id, volume):
+        music_player = self.get_player(guild_id)
+
+        await self.player_service.set_volume(music_player, volume)

@@ -1,17 +1,23 @@
 import wavelink
 
+from bot.ui.embeds import music_panel
+from bot.ui.views import MusicControls
+from bot.ui.player_panel import update_player_panel
+
 
 class PlayerService:
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_player(self, interaction):
-        guild = interaction.guild
+    async def connect_player(self, interaction, music_player):
+        if music_player.voice_client:
+            return music_player.voice_client
 
-        player: wavelink.Player = guild.voice_client
+        player: wavelink.Player = await interaction.user.voice.channel.connect(
+            cls=wavelink.Player
+        )
 
-        if not player:
-            player = await interaction.user.voice.channel.connect(cls=wavelink.Player)
+        music_player.voice_client = player
 
         return player
 
@@ -24,10 +30,7 @@ class PlayerService:
             )
             return
 
-        if not music_player.voice_client:
-            music_player.voice_client = await interaction.user.voice.channel.connect(
-                cls=wavelink.Player
-            )
+        player = await self.connect_player(interaction, music_player)
 
         tracks = await wavelink.Playable.search(
             query, source=wavelink.TrackSource.YouTube
@@ -51,68 +54,96 @@ class PlayerService:
             raw=raw_track,
         )
 
-        if music_player.voice_client.playing:
+        # ADD QUEUE
+        if player.playing or player.paused:
             music_player.queue.append(track)
 
-            await interaction.followup.send(f"➕ Adicionado à fila: {track.title}")
+            await interaction.followup.send(f"➕ Adicionado à fila: **{track.title}**")
 
             return
 
+        # FIRST TRACK
         music_player.current_track = track
 
-        await music_player.voice_client.play(track.raw)
+        await player.play(track.raw)
 
-        await interaction.followup.send(f"▶️ Tocando: {track.title}")
+        embed = music_panel(
+            title=track.title,
+            url=track.url,
+            requested_by=track.requester,
+            duration=track.duration,
+            author=track.author,
+            thumbnail_url=track.thumbnail,
+            volume=music_player.volume,
+        )
 
-    async def pause(self, interaction, music_player):
-        await interaction.response.defer()
-        player = music_player.voice_client
+        view = MusicControls(self.bot.manager, music_player.guild_id)
 
-        if player:
-            await player.pause(True)
+        message = await interaction.followup.send(embed=embed, view=view)
 
-            await interaction.followup.send("⏸️ Música pausada.")
+        music_player.panel_message = message
 
-    async def resume(self, interaction, music_player):
-        await interaction.response.defer()
-        player = music_player.voice_client
-
-        if player:
-            await player.pause(False)
-
-            await interaction.followup.send("▶️ Música retomada.")
-
-    async def skip(self, interaction, music_player):
-        await interaction.response.defer()
-
+    async def pause(self, music_player):
         player = music_player.voice_client
 
         if not player:
-            await interaction.followup.send("❌ Nenhum player ativo.", ephemeral=True)
+            return
+
+        await player.pause(True)
+
+    async def resume(self, music_player):
+        player = music_player.voice_client
+
+        if not player:
+            return
+
+        await player.pause(False)
+
+    async def skip(self, music_player):
+        player = music_player.voice_client
+
+        if not player:
             return
 
         next_track = music_player.queue.pop(0) if music_player.queue else None
 
+        # NO NEXT TRACK
         if not next_track:
             await player.skip()
 
             music_player.current_track = None
 
-            await interaction.followup.send("⏭️ Música pulada. Fila vazia.")
-
             return
 
+        # PLAY NEXT
         music_player.current_track = next_track
 
         await player.play(next_track.raw)
 
-        await interaction.followup.send(f"⏭️ Tocando agora: {next_track.title}")
+        await update_player_panel(self.bot.manager, music_player)
 
-    async def stop(self, interaction, music_player):
-        await interaction.response.defer()
+    async def stop(self, music_player):
         player = music_player.voice_client
 
-        if player:
-            await player.disconnect()
+        if not player:
+            return
 
-            await interaction.followup.send("⏹️ Reprodução encerrada.")
+        music_player.queue.clear()
+
+        music_player.current_track = None
+
+        await player.disconnect()
+
+        music_player.voice_client = None
+
+    async def set_volume(self, music_player, volume):
+        player = music_player.voice_client
+
+        if not player:
+            return
+
+        volume = max(0, min(volume, 200))
+
+        music_player.volume = volume
+
+        await player.set_volume(volume)

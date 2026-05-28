@@ -7,7 +7,7 @@ from bot.managers.music_manager import MusicManager
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.manager = MusicManager(bot)
+        self.manager = bot.manager
 
     @discord.app_commands.command(
         name="play",
@@ -25,28 +25,28 @@ class Music(commands.Cog):
         description="Pausa a música"
     )
     async def pause(self, interaction: discord.Interaction):
-        await self.manager.pause(interaction)
+        await self.manager.pause(interaction.guild.id)
 
     @discord.app_commands.command(
         name="resume",
         description="Retoma a música"
     )
     async def resume(self, interaction: discord.Interaction):
-        await self.manager.resume(interaction)
+        await self.manager.resume(interaction.guild.id)
 
     @discord.app_commands.command(
         name="skip",
         description="Pula a música"
     )
     async def skip(self, interaction: discord.Interaction):
-        await self.manager.skip(interaction)
+        await self.manager.skip(interaction.guild.id)
 
     @discord.app_commands.command(
         name="stop",
         description="Para o player"
     )
     async def stop(self, interaction: discord.Interaction):
-        await self.manager.stop(interaction)
+        await self.manager.stop(interaction.guild.id)
 
 
 async def setup(bot):
