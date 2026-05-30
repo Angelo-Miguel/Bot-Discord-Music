@@ -105,22 +105,8 @@ class PlayerService:
         if not player:
             return
 
-        next_track = music_player.queue.pop(0) if music_player.queue else None
-
-        # NO NEXT TRACK
-        if not next_track:
-            await player.skip()
-
-            music_player.current_track = None
-
-            return
-
-        # PLAY NEXT
-        music_player.current_track = next_track
-
-        await player.play(next_track.raw)
-
-        await update_player_panel(self.bot.manager, music_player)
+        music_player.skip_requested = True
+        await player.skip()
 
     async def stop(self, music_player):
         player = music_player.voice_client

@@ -1,5 +1,6 @@
 import discord
 from bot.ui.player_panel import update_player_panel
+from bot.ui.embeds import queue_embed
 
 
 class MusicControls(discord.ui.View):
@@ -120,6 +121,7 @@ class MusicControls(discord.ui.View):
         music_player = self.get_player()
 
         self.manager.queue_service.shuffle(music_player)
+        await update_player_panel(self.manager, music_player)
 
         await interaction.response.send_message("🔀 Queue embaralhada.", ephemeral=True)
 
@@ -133,9 +135,19 @@ class MusicControls(discord.ui.View):
 
         music_player.loop = not music_player.loop
 
-        status = "ativado" if music_player.loop else "desativado"
+        # Altera a cor do botão
+        button.style = (
+            discord.ButtonStyle.success
+            if music_player.loop
+            else discord.ButtonStyle.secondary
+        )
 
-        await interaction.response.send_message(f"🔁 Loop {status}.", ephemeral=True)
+        await update_player_panel(self.manager, music_player)
+
+        await interaction.response.send_message(
+            f"🔁 Loop {'ativado' if music_player.loop else 'desativado'}.",
+            ephemeral=True,
+        )
 
     @discord.ui.button(label="⏹️ Stop", style=discord.ButtonStyle.danger)
     async def stop(
@@ -178,15 +190,6 @@ class MusicControls(discord.ui.View):
             await interaction.response.send_message("📭 Queue vazia.", ephemeral=True)
             return
 
-        description = ""
-
-        for index, track in enumerate(music_player.queue[:10], start=1):
-            description += f"**{index}.** {track.title}\n"
-
-        embed = discord.Embed(
-            title="🎶 Queue",
-            description=description,
-            color=discord.Color.from_rgb(45, 47, 49),
-        )
+        embed = queue_embed(music_player)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)

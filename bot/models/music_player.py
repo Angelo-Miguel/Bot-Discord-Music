@@ -14,6 +14,8 @@ class MusicPlayer:
 
         self.shuffle = False
 
+        self.skip_requested = False
+
         self.history = []
 
         self.panel_message = None

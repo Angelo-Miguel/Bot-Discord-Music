@@ -38,20 +38,21 @@ class MusicBot(commands.Bot):
             return
 
         # LOOP
-        if music_player.loop and music_player.current_track:
+        if music_player.loop and music_player.current_track and not music_player.skip_requested:
             await payload.player.play(music_player.current_track.raw)
-
             return
+
+        music_player.skip_requested = False
 
         # PRÓXIMA MÚSICA
         next_track = self.manager.queue_service.next(music_player)
 
         if not next_track:
             music_player.current_track = None
+            await update_player_panel(self.manager, music_player)
             return
 
         music_player.current_track = next_track
-
         await payload.player.play(next_track.raw)
         await update_player_panel(self.manager, music_player)
 

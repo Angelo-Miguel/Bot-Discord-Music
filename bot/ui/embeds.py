@@ -35,3 +35,35 @@ def music_panel(
         embed.set_thumbnail(url=thumbnail_url)
 
     return embed
+
+
+def queue_embed(music_player):
+    current = music_player.current_track
+
+    description = ""
+
+    if current:
+        description += f"▶ **Agora tocando**\n" f"{current.title}\n\n"
+
+    if not music_player.queue:
+        description += "📭 Nenhuma música na fila."
+
+    else:
+        description += "─────────────\n\n"
+
+        for index, track in enumerate(
+            music_player.queue[:10],
+            start=1,
+        ):
+            description += f"**{index}.** {track.title}\n"
+
+        remaining = len(music_player.queue) - 10
+
+        if remaining > 0:
+            description += f"\n... e mais {remaining} músicas"
+
+    return discord.Embed(
+        title="🎶 Queue",
+        description=description,
+        color=discord.Color.from_rgb(45, 47, 49),
+    )
